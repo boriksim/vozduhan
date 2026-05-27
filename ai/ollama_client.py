@@ -45,7 +45,7 @@ class OllamaClient:
                 response.raise_for_status()
                 data = await response.json()
             return (data.get("response") or "").strip()
-        except (aiohttp.ClientConnectorError, aiohttp.ClientTimeout) as exc:
+        except (aiohttp.ClientConnectorError, aiohttp.ClientTimeout, aiohttp.ClientResponseError) as exc:
             logger.warning("Ollama is not reachable: %s", exc)
             raise OllamaUnavailable() from exc
 
