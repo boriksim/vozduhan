@@ -31,4 +31,4 @@ class TelegramBotRunner:
         await dispatcher.start_polling(bot, allowed_updates=["message"])
 
     async def close(self) -> None:
-        await self.handlers.ollama.close()
+        await self.handlers.llm.close()

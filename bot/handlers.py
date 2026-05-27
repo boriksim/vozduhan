@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import logging
 import asyncio
-import random
 
 from aiogram import Bot, F, Router
 from aiogram.enums import ChatType
 from aiogram.filters import CommandStart
 from aiogram.types import Message
 
-from ai.ollama_client import OllamaClient, OllamaUnavailable
+from ai.groq_client import GroqClient, GroqUnavailable
 from ai.prompt_builder import build_prompt, clean_response
 from bot.decision_engine import DecisionContext, decide_to_respond
 from config import Config
@@ -25,7 +24,7 @@ class BotHandlers:
         self.config = config
         self.memory = memory
         self.state = StateManager(memory)
-        self.ollama = OllamaClient(config.ollama_url, config.ollama_model)
+        self.llm = GroqClient(config.groq_api_key, config.groq_model)
         self.router = Router()
         self.bot_username = config.bot_name_fallback
         self.bot_id: int | None = None
@@ -115,28 +114,19 @@ class BotHandlers:
         try:
             answer = clean_response(
                 await asyncio.wait_for(
-                    self.ollama.generate(prompt),
+                    self.llm.generate(prompt),
                     timeout=self.config.generation_timeout_seconds,
                 ),
                 decision.length,
             )
-        except OllamaUnavailable:
-            logger.info("Ollama unavailable — brain is sleeping")
-            answer = random.choice(
-                [
-                    "Мозг выключен, попробуй позже. Или пни разраба.",
-                    "Хозяин вырубил рубильник, я в офлайне.",
-                    "ГПУ спит, сервер в отключке. Приходи с утра.",
-                    "Мой мозг сейчас где-то в облаках. В прямом смысле — комп выключен.",
-                    "Я бы ответил, но тот чувак с видеокартой спит.",
-                    "Комп разраба сдох. Ждите возгорания.",
-                ]
-            )
+        except GroqUnavailable:
+            logger.info("Groq unavailable")
+            answer = "Мозг выключен, попробуй позже. Или пни разраба."
         except asyncio.TimeoutError:
-            logger.warning("Ollama generation timed out")
+            logger.warning("Groq generation timed out")
             answer = "Мозг уснул, попробуй позже. Или пни разраба."
         except Exception:
-            logger.exception("Ollama generation failed")
+            logger.exception("Groq generation failed")
             answer = "О, локальный мозг опять ушёл смотреть в стену. Великолепный момент."
 
         if not answer:
@@ -179,7 +169,7 @@ class BotHandlers:
         if len(user_messages) < 5:
             return
         try:
-            summary = await self.ollama.summarize_profile(
+            summary = await self.llm.summarize_profile(
                 username=username or str(user_id),
                 messages=user_messages,
                 old_profile=current_profile.profile_text,

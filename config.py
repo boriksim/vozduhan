@@ -10,8 +10,8 @@ from dotenv import load_dotenv
 class Config:
     telegram_bot_token: str
     database_path: str
-    ollama_url: str
-    ollama_model: str
+    groq_api_key: str
+    groq_model: str
     max_context_messages: int
     profile_update_every: int
     generation_timeout_seconds: float
@@ -30,8 +30,8 @@ def load_config() -> Config:
     return Config(
         telegram_bot_token=token,
         database_path=os.getenv("DATABASE_PATH", "data/vozduhan.sqlite3").strip(),
-        ollama_url=os.getenv("OLLAMA_URL", "http://localhost:11434/api/generate").strip(),
-        ollama_model=os.getenv("OLLAMA_MODEL", "qwen2.5:7b").strip(),
+        groq_api_key=os.getenv("GROQ_API_KEY", "").strip(),
+        groq_model=os.getenv("GROQ_MODEL", "llama3-70b-8192").strip(),
         max_context_messages=int(os.getenv("MAX_CONTEXT_MESSAGES", "30")),
         profile_update_every=int(os.getenv("PROFILE_UPDATE_EVERY", "25")),
         generation_timeout_seconds=float(os.getenv("GENERATION_TIMEOUT_SECONDS", "25")),
