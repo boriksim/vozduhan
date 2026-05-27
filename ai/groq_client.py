@@ -12,7 +12,7 @@ class GroqUnavailable(Exception):
 
 
 class GroqClient:
-    def __init__(self, api_key: str, model: str = "llama3-70b-8192") -> None:
+    def __init__(self, api_key: str, model: str = "llama-3.1-8b-instant") -> None:
         self.api_key = api_key
         self.model = model
         self._client: httpx.AsyncClient | None = None
@@ -47,7 +47,7 @@ class GroqClient:
             data = resp.json()
             return (data["choices"][0]["message"]["content"] or "").strip()
         except httpx.HTTPStatusError as exc:
-            logger.warning("Groq returned an error: %s", exc)
+            logger.warning("Groq returned %s: %s", exc.response.status_code, exc.response.text)
             raise GroqUnavailable() from exc
         except (httpx.ConnectError, httpx.TimeoutException) as exc:
             logger.warning("Groq is not reachable: %s", exc)
