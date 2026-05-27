@@ -42,7 +42,8 @@ class OllamaClient:
         }
         session = await self._get_session()
         try:
-            async with session.post(self.url, json=payload) as response:
+            headers = {"ngrok-skip-browser-warning": "true"}
+            async with session.post(self.url, json=payload, headers=headers) as response:
                 response.raise_for_status()
                 data = await response.json()
             return (data.get("response") or "").strip()
