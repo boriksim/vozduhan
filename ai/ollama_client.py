@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import aiohttp
+import asyncio
 import logging
 
 logger = logging.getLogger(__name__)
@@ -45,7 +46,10 @@ class OllamaClient:
                 response.raise_for_status()
                 data = await response.json()
             return (data.get("response") or "").strip()
-        except (aiohttp.ClientConnectorError, aiohttp.ClientTimeout, aiohttp.ClientResponseError) as exc:
+        except aiohttp.ClientResponseError as exc:
+            logger.warning("Ollama returned an error: %s", exc)
+            raise OllamaUnavailable() from exc
+        except (aiohttp.ClientConnectorError, asyncio.TimeoutError) as exc:
             logger.warning("Ollama is not reachable: %s", exc)
             raise OllamaUnavailable() from exc
 
