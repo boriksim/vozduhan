@@ -386,11 +386,11 @@ class SocialGraph:
     def _resolve_username(self, user_id: int) -> str:
         with self._connect() as conn:
             row = conn.execute(
-                "SELECT username, display_name FROM users WHERE user_id=?",
+                "SELECT username FROM users WHERE user_id=?",
                 (user_id,),
             ).fetchone()
-        if row:
-            return row["username"] or row["display_name"] or str(user_id)
+        if row and row["username"]:
+            return row["username"]
         return str(user_id)
 
     @staticmethod
