@@ -18,6 +18,7 @@ class Config:
     web_host: str
     web_port: int
     bot_name_fallback: str
+    self_ping_url: str
 
 
 def load_config() -> Config:
@@ -38,4 +39,5 @@ def load_config() -> Config:
         web_host=os.getenv("WEB_HOST", "0.0.0.0").strip(),
         web_port=int(os.getenv("PORT") or os.getenv("WEB_PORT", "8080")),
         bot_name_fallback=os.getenv("BOT_NAME_FALLBACK", "vozduhan").strip(),
+        self_ping_url=os.getenv("SELF_PING_URL", "").strip(),
     )
