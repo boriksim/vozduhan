@@ -346,6 +346,43 @@ class SocialGraph:
         with self._connect() as conn:
             conn.execute("UPDATE graph_events SET resolved=1 WHERE id=?", (event_id,))
 
+    def all_edges(self, limit: int = 50) -> list[dict]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT source_type, source_id, target_type, target_id, edge_type, weight, context_tag, last_interaction FROM graph_edges ORDER BY last_interaction DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    def all_events(self, limit: int = 20) -> list[dict]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT id, event_type, description, involved_users, chat_id, impact_score, created_at, resolved FROM graph_events ORDER BY created_at DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+        result = []
+        for r in rows:
+            d = dict(r)
+            try:
+                d["involved_users"] = json.loads(d["involved_users"])
+            except (json.JSONDecodeError, TypeError):
+                pass
+            d["resolved"] = bool(d["resolved"])
+            result.append(d)
+        return result
+
+    def edge_count(self) -> int:
+        with self._connect() as conn:
+            return conn.execute("SELECT COUNT(*) FROM graph_edges").fetchone()[0]
+
+    def event_count(self, event_type: str | None = None) -> int:
+        with self._connect() as conn:
+            if event_type:
+                return conn.execute(
+                    "SELECT COUNT(*) FROM graph_events WHERE event_type=?", (event_type,)
+                ).fetchone()[0]
+            return conn.execute("SELECT COUNT(*) FROM graph_events").fetchone()[0]
+
     def _resolve_username(self, user_id: int) -> str:
         with self._connect() as conn:
             row = conn.execute(

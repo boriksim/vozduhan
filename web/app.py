@@ -6,6 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
+from memory.social_graph import SocialGraph
 from memory.sqlite import SQLiteMemory
 
 
@@ -14,6 +15,7 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 
 def create_app(memory: SQLiteMemory) -> FastAPI:
+    graph = SocialGraph(memory.database_path)
     app = FastAPI(title="Vozduhan Control Panel")
 
     @app.middleware("http")
@@ -26,6 +28,10 @@ def create_app(memory: SQLiteMemory) -> FastAPI:
 
     @app.get("/", response_class=HTMLResponse)
     async def index(request: Request) -> HTMLResponse:
+        edges = graph.all_edges(limit=30)
+        events = graph.all_events(limit=20)
+        edge_count = graph.edge_count()
+        conflict_count = graph.event_count("conflict")
         return templates.TemplateResponse(
             request,
             "index.html",
@@ -34,6 +40,10 @@ def create_app(memory: SQLiteMemory) -> FastAPI:
                 "control": memory.get_control(),
                 "states": memory.all_states(),
                 "logs": memory.recent_logs(40),
+                "graph_edges": edges,
+                "graph_events": events,
+                "graph_edge_count": edge_count,
+                "graph_conflict_count": conflict_count,
             },
         )
 
@@ -68,5 +78,13 @@ def create_app(memory: SQLiteMemory) -> FastAPI:
     @app.get("/state")
     async def state() -> list[dict[str, object]]:
         return memory.all_states()
+
+    @app.get("/graph/edges")
+    async def graph_edges(limit: int = 50) -> list[dict[str, object]]:
+        return graph.all_edges(limit)
+
+    @app.get("/graph/events", response_class=HTMLResponse)
+    async def graph_events(limit: int = 20) -> list[dict[str, object]]:
+        return graph.all_events(limit)
 
     return app

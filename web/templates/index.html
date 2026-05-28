@@ -81,8 +81,29 @@
       grid-template-columns: 0.9fr 1.4fr;
       gap: 18px;
     }
+    .three {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .graph-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .tag {
+      display: inline-block;
+      background: #252a30;
+      border-radius: 4px;
+      padding: 0 6px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .resolved { opacity: 0.5; text-decoration: line-through; }
     @media (max-width: 820px) {
-      header, .two { display: block; }
+      header, .two, .three, .graph-row { display: block; }
       .grid { grid-template-columns: 1fr; }
       section { margin-bottom: 14px; }
     }
@@ -105,6 +126,52 @@
       <div class="metric"><span class="muted">bot</span><strong class="{% if control.enabled %}on{% else %}off{% endif %}">{% if control.enabled %}enabled{% else %}disabled{% endif %}</strong></div>
       <div class="metric"><span class="muted">auto intervention</span><strong class="{% if control.intervention_mode %}on{% else %}off{% endif %}">{% if control.intervention_mode %}enabled{% else %}disabled{% endif %}</strong></div>
       <div class="metric"><span class="muted">last response</span><strong>{{ control.last_response_at or "never" }}</strong></div>
+    </div>
+
+    <div class="three">
+      <div class="metric"><span class="muted">social graph edges</span><strong>{{ graph_edge_count }}</strong></div>
+      <div class="metric"><span class="muted">conflicts recorded</span><strong>{{ graph_conflict_count }}</strong></div>
+      <div class="metric"><span class="muted">active events</span><strong>{{ graph_events | selectattr("resolved", "eq", false) | list | length }}</strong></div>
+    </div>
+
+    <div class="graph-row">
+      <section>
+        <h2>Social Relations</h2>
+        <table>
+          <thead><tr><th>from</th><th>→</th><th>to</th><th>type</th><th>weight</th></tr></thead>
+          <tbody>
+          {% for edge in graph_edges %}
+            <tr>
+              <td>{{ edge.source_type }}:{{ edge.source_id }}</td>
+              <td>→</td>
+              <td>{{ edge.target_type }}:{{ edge.target_id }}</td>
+              <td><span class="tag">{{ edge.edge_type }}</span></td>
+              <td>{{ "%.2f"|format(edge.weight) }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="5" class="muted">no edges yet</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>Events</h2>
+        <table>
+          <thead><tr><th>type</th><th>description</th><th>users</th></tr></thead>
+          <tbody>
+          {% for event in graph_events %}
+            <tr class="{% if event.resolved %}resolved{% endif %}">
+              <td><span class="tag">{{ event.event_type }}</span></td>
+              <td>{{ event.description[:60] }}{% if event.description|length > 60 %}...{% endif %}</td>
+              <td>{{ event.involved_users | join(", ") }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="3" class="muted">no events yet</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </section>
     </div>
 
     <div class="two">
