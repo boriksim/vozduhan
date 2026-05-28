@@ -33,7 +33,7 @@ def load_config() -> Config:
         database_path=os.getenv("DATABASE_PATH", "data/vozduhan.sqlite3").strip(),
         groq_api_key=os.getenv("GROQ_API_KEY", "").strip(),
         groq_model=os.getenv("GROQ_MODEL", "llama-3.1-8b-instant").strip(),
-        max_context_messages=int(os.getenv("MAX_CONTEXT_MESSAGES", "30")),
+        max_context_messages=int(os.getenv("MAX_CONTEXT_MESSAGES", "50")),
         profile_update_every=int(os.getenv("PROFILE_UPDATE_EVERY", "25")),
         generation_timeout_seconds=float(os.getenv("GENERATION_TIMEOUT_SECONDS", "25")),
         web_host=os.getenv("WEB_HOST", "0.0.0.0").strip(),

@@ -33,8 +33,10 @@ class DecisionContext:
     bot_id: int | None
     last_response_at: str | None
     intervention_mode: bool
+    user_id: int | None = None
     is_private: bool = False
     is_reply_to_bot: bool = False
+    graph_bonus: int = 0
 
 
 @dataclass(frozen=True)
@@ -133,6 +135,10 @@ def decide_to_respond(context: DecisionContext) -> DecisionResult:
             score += 35
             reasons.append("random intervention")
 
+    if context.graph_bonus:
+        score += context.graph_bonus
+        reasons.append(f"graph: {context.graph_bonus}")
+
     priority = max(0, min(100, score))
     respond = mentioned or addressed or score >= 45
 
@@ -153,7 +159,7 @@ def decide_to_respond(context: DecisionContext) -> DecisionResult:
         reason=", ".join(reasons) or "no strong signal",
         priority=priority,
         tone=_tone(context.state, conflict, toxic, mentioned),
-        length=_length(text, context.state, addressed or mentioned, conflict),
+        length=_length(text, context.state, addressed or mentioned, conflict, context.user_id, context.recent_messages),
     )
 
 
@@ -167,13 +173,21 @@ def _tone(state: ChatState, conflict: bool, toxic: bool, mentioned: bool) -> str
     return "neutral"
 
 
-def _length(text: str, state: ChatState, directly_asked: bool, conflict: bool) -> str:
+def _length(text: str, state: ChatState, directly_asked: bool, conflict: bool, user_id: int | None = None, recent_messages: list[ChatMessage] | None = None) -> str:
     if state.mood < -0.5:
         return "short"
     if directly_asked and "?" in text:
         return "medium"
     if conflict and state.engagement > 0.7:
         return "medium"
+    # For users who repeat themselves, give longer, more engaged responses
+    if user_id is not None and recent_messages is not None:
+        recent_user_messages = [m for m in recent_messages[-10:] if m.user_id == user_id and not m.is_bot]
+        if len(recent_user_messages) >= 3:
+            # Check if user is repeating similar messages
+            recent_texts = [m.text.lower().strip() for m in recent_user_messages]
+            if len(set(recent_texts)) < len(recent_texts) * 0.7:  # High repetition
+                return "long"  # Give longer, more engaged response to break the cycle
     return "short"
 
 

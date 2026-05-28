@@ -12,6 +12,7 @@ from ai.groq_client import GroqClient, GroqUnavailable
 from ai.prompt_builder import build_prompt, clean_response
 from bot.decision_engine import DecisionContext, decide_to_respond
 from config import Config
+from memory.social_graph import SocialGraph
 from memory.sqlite import SQLiteMemory
 from state.state_manager import StateManager
 
@@ -25,6 +26,7 @@ class BotHandlers:
         self.memory = memory
         self.state = StateManager(memory)
         self.llm = GroqClient(config.groq_api_key, config.groq_model)
+        self.graph = SocialGraph(config.database_path)
         self.router = Router()
         self.bot_username = config.bot_name_fallback
         self.bot_id: int | None = None
@@ -62,6 +64,15 @@ class BotHandlers:
             is_bot=user.id == self.bot_id,
         )
 
+        self.graph.update_after_message(
+            chat_id=message.chat.id,
+            user_id=user.id,
+            username=user.username,
+            text=message.text,
+            is_bot=user.id == self.bot_id,
+            bot_id=self.bot_id,
+        )
+
         if user.id == self.bot_id:
             return
 
@@ -80,21 +91,26 @@ class BotHandlers:
         history = self.memory.recent_messages(message.chat.id, self.config.max_context_messages)
         profile = self.memory.get_user_profile(user.id)
 
+        graph_bonus = self.graph.get_scoring_modifier(user.id, message.chat.id, self.bot_id)
+        graph_context_str = self.graph.get_user_context(user.id, message.chat.id, self.bot_id)
+
         decision = decide_to_respond(
-            DecisionContext(
-                current_message=message.text,
-                recent_messages=history,
-                state=current_state,
-                user_profile=profile,
-                bot_username=self.bot_username,
-                bot_id=self.bot_id,
-                last_response_at=control["last_response_at"],
-                intervention_mode=bool(control["intervention_mode"]),
-                is_private=message.chat.type == ChatType.PRIVATE,
-                is_reply_to_bot=is_reply_to_bot,
-            )
-        )
-        logger.info("decision chat=%s respond=%s priority=%s reason=%s", message.chat.id, decision.respond, decision.priority, decision.reason)
+             DecisionContext(
+                 current_message=message.text,
+                 recent_messages=history,
+                 state=current_state,
+                 user_profile=profile,
+                 bot_username=self.bot_username,
+                 bot_id=self.bot_id,
+                 last_response_at=control["last_response_at"],
+                 intervention_mode=bool(control["intervention_mode"]),
+                 user_id=user.id,
+                 is_private=message.chat.type == ChatType.PRIVATE,
+                 is_reply_to_bot=is_reply_to_bot,
+                 graph_bonus=graph_bonus,
+             )
+         )
+        logger.info("decision chat=%s respond=%s priority=%s reason=%s graph_bonus=%s", message.chat.id, decision.respond, decision.priority, decision.reason, graph_bonus)
 
         await self._maybe_update_profile(user.id, user.username, profile, history)
 
@@ -109,6 +125,7 @@ class BotHandlers:
             user_profile=profile,
             decision=decision,
             memory_blocks=self._memory_blocks(profile),
+            social_graph_context=graph_context_str,
         )
 
         try:
